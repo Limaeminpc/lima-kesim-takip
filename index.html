@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lima Kesim Adetleri Takip Paneli</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .erp-table th {
+            background-color: #2f4050;
+            color: #ffffff;
+            font-weight: 600;
+            border: 1px solid #455a6e;
+            padding: 10px 8px;
+            font-size: 12.5px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .erp-table td {
+            border: 1px solid #d1d5db;
+            padding: 8px 8px;
+            font-size: 12.5px;
+            vertical-align: middle;
+        }
+        .erp-table tbody tr.order-row:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        .erp-table tbody tr.order-row:hover {
+            background-color: #eef2ff;
+        }
+        .erp-table tbody tr.urgent-row,
+        .erp-table tbody tr.urgent-row:nth-child(even) {
+            background-color: #ffe4e6;
+        }
+        .erp-table tbody tr.urgent-row:hover {
+            background-color: #fecdd3;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen font-sans">
+
+    <!-- Zorunlu Giriş Ekranı -->
+    <div id="auth-gate" class="min-h-screen flex items-center justify-center p-4 bg-slate-900">
+        <div class="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md p-7">
+            <div class="mb-6 text-center">
+                <span class="inline-block text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-slate-100 text-slate-700 mb-2">
+                    Lima Web Servis
+                </span>
+                <h1 class="text-xl font-bold text-slate-900">Lima Kesim Adetleri Takip Paneli</h1>
+                <p class="text-xs text-gray-500 mt-1">Devam etmek için kullanıcı adı ve parolanızla giriş yapın.</p>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label for="login-username" class="block text-xs font-semibold text-gray-700 uppercase mb-1">Kullanıcı Adı</label>
+                    <input type="text" id="login-username" name="username" required autocomplete="username" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-slate-700" placeholder="Kullanıcı adınız">
+                </div>
+                <div>
+                    <label for="login-password" class="block text-xs font-semibold text-gray-700 uppercase mb-1">Parola</label>
+                    <input type="password" id="login-password" name="password" required autocomplete="current-password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-slate-700" placeholder="Parolanız">
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer select-none">
+                        <input type="checkbox" id="remember-me" name="remember" checked class="w-4 h-4 accent-slate-800 rounded">
+                        <span>Beni Hatırla (Oturumu açık tut)</span>
+                    </label>
+                </div>
+                <div id="login-error" class="hidden text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2"></div>
+                <button type="submit" id="login-submit-btn" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2.5 rounded-lg text-sm transition cursor-pointer">
+                    Giriş Yap
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Ana Uygulama -->
+    <div id="app-shell" class="hidden p-4 md:p-6">
+        <div class="max-w-[1400px] mx-auto">
+            <!-- Üst Panel -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-slate-700 p-4 mb-4 flex flex-wrap justify-between items-center gap-4">
+                <div class="flex flex-wrap items-center gap-6">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-xl font-bold text-slate-800">Lima Kesim Adetleri Takip Paneli</h1>
+                            <span id="sync-status-badge" class="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                D1 Bağlı
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-500">Parçalı kesim, kesimhane ve depo onay takip ekranı</p>
+                    </div>
+
+                    <div class="flex items-center gap-4 border-l pl-6 border-gray-200">
+                        <div class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded">
+                            <span class="text-[11px] text-gray-500 uppercase font-semibold block">Aktif Order</span>
+                            <span class="text-lg font-bold text-slate-800" id="stat-active">0</span>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded">
+                            <span class="text-[11px] text-amber-700 uppercase font-semibold block">Toplam Eksik Kalan</span>
+                            <span class="text-lg font-bold text-amber-700" id="stat-remaining">0 Adet</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <div class="flex items-center gap-2 bg-slate-100 border border-slate-300 px-3 py-1.5 rounded">
+                        <span class="text-xs font-semibold text-slate-600">Kullanıcı:</span>
+                        <span id="display-user-name" class="text-xs font-bold text-slate-900">-</span>
+                        <span id="display-user-badge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-700 text-white uppercase">-</span>
+
+                        <!-- Superuser yetki sınama dropdown menüsü -->
+                        <span id="impersonate-controls" class="hidden items-center gap-1.5 ml-1 border-l border-slate-300 pl-2">
+                            <label for="impersonate-select" class="text-[10px] font-semibold text-indigo-700">Sına:</label>
+                            <select id="impersonate-select" onchange="selectImpersonateUser(this.value)" title="Farklı kullanıcı veya yetki grubu ile sına" class="text-[11px] bg-white border border-indigo-300 text-slate-800 rounded px-1.5 py-0.5 focus:outline-none focus:border-indigo-600 cursor-pointer"></select>
+                            <button id="btn-reset-impersonate" onclick="resetImpersonate()" title="Kendi Superuser hesabına dön" class="hidden text-[10px] font-semibold text-indigo-700 underline hover:text-indigo-900 cursor-pointer">
+                                (Asıl Hesap)
+                            </button>
+                        </span>
+                    </div>
+
+                    <button id="btn-manage-users" onclick="openUserAccountsModal()" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded text-sm font-medium shadow-sm transition cursor-pointer">
+                        👥 Kullanıcı &amp; Parola Yönetimi
+                    </button>
+
+                    <button id="btn-new-order" onclick="openNewOrderModal()" class="hidden bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded text-sm font-medium shadow-sm transition cursor-pointer">
+                        + Yeni Order Ekle
+                    </button>
+
+                    <button onclick="logoutSession()" class="bg-white hover:bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded text-sm font-medium transition cursor-pointer">
+                        Çıkış Yap
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sekmeler ve Order Filtreleme -->
+            <div class="flex flex-wrap items-center justify-between border-b border-gray-300 mb-4 gap-2">
+                <div class="flex space-x-1">
+                    <button id="tab-active" onclick="switchTab('active')" class="px-4 py-2 text-sm font-semibold rounded-t bg-white border border-b-0 border-gray-300 text-slate-800">
+                        Aktif Kesim Listesi (<span id="count-active">0</span>)
+                    </button>
+                    <button id="tab-completed" onclick="switchTab('completed')" class="px-4 py-2 text-sm font-medium rounded-t bg-gray-200 text-gray-600 hover:bg-gray-300">
+                        Tamamlanan Orderlar / Arşiv (<span id="count-completed">0</span>)
+                    </button>
+                </div>
+
+                <!-- Anlık Order Filtreleme Kutusu -->
+                <div class="flex items-center gap-2 pb-1">
+                    <button onclick="manualRefreshAll()" title="Sunucudan hemen yenile" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded cursor-pointer font-medium">↻ Yenile</button>
+                    <input type="text" id="order-filter" onkeyup="renderTable()" placeholder="Order No ile filtrele (örn: 2219-26-BYZ-10)..." class="border border-gray-300 rounded px-3 py-1 text-sm bg-white w-72 focus:outline-none focus:border-slate-600">
+                    <button onclick="clearOrderFilter()" title="Filtreyi Temizle" class="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 rounded cursor-pointer">Temizle</button>
+                </div>
+            </div>
+
+            <!-- Ana Tablo -->
+            <div class="bg-white shadow-sm rounded-b overflow-x-auto border border-gray-300">
+                <table class="w-full border-collapse erp-table">
+                    <thead>
+                        <tr>
+                            <th>Acil</th>
+                            <th>Order No</th>
+                            <th>Model Adı</th>
+                            <th>Renk</th>
+                            <th>Order Adedi</th>
+                            <th>Girilen Kesim Adedi</th>
+                            <th>Güncelleme</th>
+                            <th>Eksik Kalan Adet</th>
+                            <th>Kesimhane onay</th>
+                            <th>Depo onay</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Kullanıcı, Grup ve Parola Yönetimi Modalı -->
+    <div id="userAccountsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg p-6 w-full max-w-3xl shadow-xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-1">
+                <h2 class="text-lg font-bold text-slate-800">Kullanıcı, Grup ve Parola Yönetimi</h2>
+                <button onclick="closeUserAccountsModal()" class="text-gray-400 hover:text-gray-700 text-lg font-bold cursor-pointer">✕</button>
+            </div>
+            <p class="text-xs text-gray-500 mb-4">Yeni kullanıcı ekleyebilir veya mevcut kullanıcıların adını, grubunu ve parolasını D1 veritabanında düzenleyebilirsin.</p>
+
+            <!-- Yeni Kullanıcı Ekle / Düzenle Formu -->
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-5">
+                <div class="text-xs font-bold text-slate-700 uppercase mb-3" id="account-form-title">Yeni Kullanıcı Ekle</div>
+                <input type="hidden" id="editing-account-id">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-gray-600 uppercase mb-1">Kullanıcı Adı</label>
+                        <input type="text" id="acc-username" class="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm bg-white" placeholder="Örn: sibel.sen">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-gray-600 uppercase mb-1">Kullanıcı Grubu</label>
+                        <select id="acc-group" class="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm bg-white">
+                            <option value="superuser">Superuser</option>
+                            <option value="cutting">Kesimhane</option>
+                            <option value="warehouse">Depo</option>
+                            <option value="viewer">Salt Okunur</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-gray-600 uppercase mb-1">Parola</label>
+                        <input type="text" id="acc-password" class="w-full border border-gray-300 rounded px-2.5 py-1.5 text-sm bg-white" placeholder="Parola girin">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 mt-3">
+                    <button type="button" onclick="resetAccountForm()" class="px-3 py-1.5 text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 rounded font-medium cursor-pointer">Temizle</button>
+                    <button type="button" onclick="saveAccountItem()" class="px-4 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded font-semibold cursor-pointer">Kaydet</button>
+                </div>
+            </div>
+
+            <!-- Mevcut Kullanıcılar Listesi -->
+            <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-slate-100 text-slate-700 uppercase">
+                        <tr>
+                            <th class="p-2.5 border-b">Kullanıcı Adı</th>
+                            <th class="p-2.5 border-b">Grup</th>
+                            <th class="p-2.5 border-b">Parola</th>
+                            <th class="p-2.5 border-b text-right">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="accounts-tbody" class="divide-y divide-gray-200 bg-white"></tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-end mt-5">
+                <button onclick="closeUserAccountsModal()" class="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-900 text-white rounded font-medium cursor-pointer">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Yeni Order Ekleme Modalı -->
+    <div id="newOrderModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <h2 class="text-lg font-bold text-slate-800 mb-4">Yeni Order Ekle</h2>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Order No</label>
+                    <input type="text" id="new-order-no" class="w-full border border-gray-300 rounded p-2 text-sm uppercase" placeholder="Örn: 2219-26-BYZ-10 veya 4749-RCY">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Model Adı</label>
+                    <input type="text" id="new-model" class="w-full border border-gray-300 rounded p-2 text-sm uppercase" placeholder="Örn: POP UP LACE SUTYEN">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Renk</label>
+                        <input type="text" id="new-color" class="w-full border border-gray-300 rounded p-2 text-sm uppercase" placeholder="Örn: SİYAH">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Order Adedi</label>
+                        <input type="number" id="new-qty" class="w-full border border-gray-300 rounded p-2 text-sm" placeholder="Örn: 10000">
+                    </div>
+                </div>
+                <div class="pt-1">
+                    <label class="inline-flex items-center gap-2 cursor-pointer text-sm font-medium text-rose-700">
+                        <input type="checkbox" id="new-urgent" class="w-4 h-4 accent-rose-600 rounded">
+                        <span>Acil öncelikli order olarak işaretle</span>
+                    </label>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 mt-5">
+                <button onclick="closeNewOrderModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">İptal</button>
+                <button onclick="saveNewOrder()" class="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-900 text-white rounded font-medium">Listeye Ekle</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Kimlik Bilgileri (Order No / Model Adı / Renk) Düzenleme Modalı -->
+    <div id="editOrderMetaModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <h2 class="text-lg font-bold text-slate-800 mb-1">Order Bilgilerini Düzenle</h2>
+            <p class="text-xs text-gray-500 mb-4" id="edit-order-meta-subtitle"></p>
+            <input type="hidden" id="edit-order-meta-index">
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Order No</label>
+                    <input type="text" id="edit-order-no-input" class="w-full border border-gray-300 rounded p-2 text-sm uppercase">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Model Adı</label>
+                    <input type="text" id="edit-model-input" class="w-full border border-gray-300 rounded p-2 text-sm uppercase">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Renk</label>
+                    <input type="text" id="edit-color-input" class="w-full border border-gray-300 rounded p-2 text-sm uppercase">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 mt-5">
+                <button onclick="closeEditOrderMetaModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">İptal</button>
+                <button onclick="saveEditedOrderMeta()" class="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-900 text-white rounded font-medium">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Adedi Düzenleme Modalı -->
+    <div id="editOrderQtyModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-xl">
+            <h2 class="text-lg font-bold text-slate-800 mb-1">Order Adedini Düzenle</h2>
+            <p class="text-xs text-gray-500 mb-4" id="edit-order-qty-subtitle"></p>
+            <input type="hidden" id="edit-order-qty-index">
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Yeni Order Adedi</label>
+                <input type="number" id="edit-order-qty-input" class="w-full border border-gray-300 rounded p-2 text-sm">
+            </div>
+            <div class="flex justify-end space-x-2 mt-5">
+                <button onclick="closeEditOrderQtyModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">İptal</button>
+                <button onclick="saveEditedOrderQty()" class="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-900 text-white rounded font-medium">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parçalı Kesim Yönetimi Modalı -->
+    <div id="cutModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-lg shadow-xl">
+            <h2 class="text-lg font-bold text-slate-800 mb-1">Kesim Adedi Yönetimi</h2>
+            <p class="text-xs text-gray-500 mb-4" id="cut-modal-subtitle"></p>
+            <input type="hidden" id="cut-order-index">
+
+            <div class="mb-4 bg-gray-50 border border-gray-200 rounded p-3">
+                <div class="text-xs font-semibold text-gray-700 mb-2">Girilen Kesim Partileri:</div>
+                <div id="cut-history-list" class="text-xs text-gray-700 space-y-1.5 max-h-44 overflow-y-auto"></div>
+            </div>
+
+            <div id="cut-add-section">
+                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Yeni Kesilen Parti Adedi Ekle</label>
+                <div class="flex gap-2">
+                    <input type="number" id="cut-add-qty" class="flex-1 border border-gray-300 rounded p-2 text-sm" placeholder="Örn: 2500">
+                    <button onclick="saveCutBatch()" class="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium">Adedi Ekle</button>
+                </div>
+            </div>
+
+            <div class="flex justify-end mt-5">
+                <button onclick="closeCutModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SESSION_STORAGE_KEY = 'lima_active_session_v1';
+        const REMEMBERED_USER_KEY = 'lima_remembered_user_v1';
+
+        const defaultAccounts = [
+            { id: "u_admin", username: "admin", group: "superuser", password: novatobi3526_fallback() },
+            { id: "u_kesim", username: "kesimhane", group: "cutting", password: "123" },
+            { id: "u_depo", username: "depo", group: "warehouse", password: "123" },
+            { id: "u_izleyici", username: "izleyici", group: "viewer", password: "123" }
+        ];
+
+        const seedOrders = [
+            {
+                id: "ord_seed_4726",
+                urgent: false,
+                createdAt: "20.11.2026",
+                orderNo: "4726-RCY",
+                model: "POP UP LACE SUTYEN",
+                color: "SİYAH",
+                orderQty: 10000,
+                cuts: [
+                    { qty: 2500, date: "20.11 09:15" },
+                    { qty: 3100, date: "20.11 11:40" }
+                ],
+                hasUpdate: false,
+                cuttingStatus: "Devam Ediyor",
+                cuttingCompletedAt: "",
+                warehouseStatus: "Beklemede",
+                warehouseCompletedAt: "",
+                logs: [
+                    { id: "l1", text: "Sistem adlı kullanıcı 4726-RCY order'ını oluşturdu. 20.11.26 08:30" }
+                ]
+            },
+            {
+                id: "ord_seed_2219",
+                urgent: true,
+                createdAt: "20.11.2026",
+                orderNo: "2219-26-BYZ-10",
+                model: "DANTELLİ BRALET",
+                color: "BEYAZ",
+                orderQty: 4500,
+                cuts: [],
+                hasUpdate: false,
+                cuttingStatus: "Beklemede",
+                cuttingCompletedAt: "",
+                warehouseStatus: "Beklemede",
+                warehouseCompletedAt: "",
+                logs: [
+                    { id: "l2", text: "Sistem adlı kullanıcı 2219-26-BYZ-10 order'ını oluşturdu. 20.11.26 09:00" }
+                ]
+            }
+        ];
+
+        function novatobi3526_fallback() {
+            return "novatobi3526";
+        }
+
+        // --- D1 İstemci Katmanı (LimaApi) ---
+        const LimaApi = {
+            async getUsers() {
+                const r = await fetch("/api/users", { cache: "no-store" });
+                if (!r.ok) throw new Error("Kullanıcılar sunucudan alınamadı.");
+                const d = await r.json();
+                return Array.isArray(d.users) ? d.users : [];
+            },
+            async upsertUser(acc) {
+                const payload = {
+                    id: acc.id,
+                    username: acc.username,
+                    password: acc.password,
+                    role: acc.group,
+                    group_name: acc.group,
+                    permissions: { group: acc.group }
+                };
+                const r = await fetch("/api/users", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                if (!r.ok) throw new Error("Kullanıcı D1'e kaydedilemedi.");
+                return r.json();
+            },
+            async deleteUser(id) {
+                const r = await fetch(`/api/users?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+                if (!r.ok) throw new Error("Kullanıcı D1'den silinemedi.");
+                return r.json();
+            },
+
+            async getOrders() {
+                const r = await fetch("/api/items", { cache: "no-store" });
+                if (!r.ok) throw new Error("Order listesi sunucudan alınamadı.");
+                const d = await r.json();
+                const items = Array.isArray(d.items) ? d.items : [];
+                return items.map(row => this.deserializeOrder(row));
+            },
+            async upsertOrder(order) {
+                const payload = this.serializeOrder(order);
+                const r = await fetch("/api/items", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                if (!r.ok) throw new Error("Order D1'e kaydedilemedi.");
+                return r.json();
+            },
+            async addLog(username, action) {
+                await fetch("/api/logs", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, action })
+                }).catch(() => {});
+            },
+
+            serializeOrder(order) {
+                const totalCut = (order.cuts || []).reduce((s, c) => s + (Number(c.qty) || 0), 0);
+                const identity = getEffectiveIdentity();
+                const metaBlob = {
+                    urgent: Boolean(order.urgent),
+                    createdAt: order.createdAt || getFullDate(),
+                    model: order.model || "",
+                    color: order.color || "",
+                    orderQty: Number(order.orderQty) || 0,
+                    cuts: Array.isArray(order.cuts) ? order.cuts : [],
+                    hasUpdate: Boolean(order.hasUpdate),
+                    cuttingCompletedAt: order.cuttingCompletedAt || "",
+                    warehouseCompletedAt: order.warehouseCompletedAt || "",
+                    logs: Array.isArray(order.logs) ? order.logs : []
+                };
+                return {
+                    id: order.id || ("ord_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)),
+                    order_no: order.orderNo || "",
+                    part_code: `${order.model || ""} | ${order.color || ""}`,
+                    qty: totalCut,
+                    cutting_status: order.cuttingStatus || "Beklemede",
+                    warehouse_status: order.warehouseStatus || "Beklemede",
+                    updated_by: identity ? identity.username : "Sistem",
+                    note: JSON.stringify(metaBlob)
+                };
+            },
+            deserializeOrder(row) {
+                let meta = {};
+                if (row.note) {
+                    try {
+                        meta = JSON.parse(row.note);
+                    } catch (_) {}
+                }
+                let fallbackModel = "";
+                let fallbackColor = "";
+                if (row.part_code && row.part_code.includes("|")) {
+                    const parts = row.part_code.split("|");
+                    fallbackModel = (parts[0] || "").trim();
+                    fallbackColor = (parts[1] || "").trim();
+                }
+                return {
+                    id: row.id,
+                    urgent: Boolean(meta.urgent),
+                    createdAt: meta.createdAt || (row.updated_at ? row.updated_at.slice(0, 10) : "-"),
+                    orderNo: row.order_no || "",
+                    model: meta.model || fallbackModel,
+                    color: meta.color || fallbackColor,
+                    orderQty: Number(meta.orderQty) || 0,
+                    cuts: Array.isArray(meta.cuts) ? meta.cuts : [],
+                    hasUpdate: Boolean(meta.hasUpdate),
+                    cuttingStatus: row.cutting_status || "Beklemede",
+                    cuttingCompletedAt: meta.cuttingCompletedAt || "",
+                    warehouseStatus: row.warehouse_status || "Beklemede",
+                    warehouseCompletedAt: meta.warehouseCompletedAt || "",
+                    logs: Array.isArray(meta.logs) ? meta.logs : []
+                };
+            }
+        };
+
+        let userAccounts = [...defaultAccounts];
+        let orders = [];
+        let activeSession = null;       // Gerçek giriş yapan hesap
+        let impersonatedUser = null;    // Superuser'ın sınadığı kullanıcı veya grup { username, group }
+        let currentTab = 'active';
+        let expandedOrderIds = new Set();
+        let syncTimerId = null;
+        let isSyncing = false;
+
+        function setSyncBadge(state, text) {
+            const el = document.getElementById('sync-status-badge');
+            if (!el) return;
+            el.innerText = text;
+            if (state === 'ok') {
+                el.className = "text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200";
+            } else if (state === 'busy') {
+                el.className = "text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200";
+            } else {
+                el.className = "text-[10px] font-semibold px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200";
+            }
+        }
+
+        function mapServerUser(u) {
+            const grp = u.group || u.group_name || u.role || 'viewer';
+            return {
+                id: u.id,
+                username: u.username,
+                group: grp,
+                password: u.password
+            };
+        }
+
+        async function syncUsersFromServer(seedIfEmpty = false) {
+            try {
+                const serverUsers = await LimaApi.getUsers();
+                if (serverUsers.length > 0) {
+                    userAccounts = serverUsers.map(mapServerUser);
+                } else if (seedIfEmpty) {
+                    for (const def of defaultAccounts) {
+                        await LimaApi.upsertUser(def);
+                    }
+                    userAccounts = [...defaultAccounts];
+                }
+            } catch (err) {
+                console.error("D1 kullanıcı yükleme hatası:", err);
+                setSyncBadge('err', 'D1 Bağlantı Hatası');
+            }
+        }
+
+        async function syncOrdersFromServer(seedIfEmpty = false) {
+            try {
+                const serverOrders = await LimaApi.getOrders();
+                if (serverOrders.length > 0) {
+                    orders = serverOrders;
+                } else if (seedIfEmpty) {
+                    for (const seed of seedOrders) {
+                        await LimaApi.upsertOrder(seed);
+                    }
+                    orders = JSON.parse(JSON.stringify(seedOrders));
+                } else {
+                    orders = [];
+                }
+                setSyncBadge('ok', `D1 Senkron (${getShortTime()})`);
+            } catch (err) {
+                console.error("D1 order yükleme hatası:", err);
+                setSyncBadge('err', 'D1 Senkron Hatası');
+            }
+        }
+
+        async function persistOrderToD1(order, actionSummary) {
+            setSyncBadge('busy', 'Kaydediliyor...');
+            try {
+                const res = await LimaApi.upsertOrder(order);
+                if (res && res.id) order.id = res.id;
+                const eff = getEffectiveIdentity();
+                if (actionSummary) {
+                    await LimaApi.addLog(eff ? eff.username : "Sistem", `${order.orderNo}: ${actionSummary}`);
+                }
+                setSyncBadge('ok', `D1 Kaydedildi (${getShortTime()})`);
+            } catch (err) {
+                console.error(err);
+                setSyncBadge('err', 'Kayıt Hatası!');
+                alert("Sunucu (D1) kaydı sırasında hata oluştu. İnternet bağlantısını kontrol edip tekrar deneyin.");
+            }
+        }
+
+        async function manualRefreshAll() {
+            if (isSyncing) return;
+            isSyncing = true;
+            setSyncBadge('busy', 'Yenileniyor...');
+            try {
+                await syncUsersFromServer(false);
+                await syncOrdersFromServer(false);
+                applyAuthState();
+            } finally {
+                isSyncing = false;
+            }
+        }
+
+        function startLiveSync(intervalMs = 5000) {
+            if (syncTimerId) clearInterval(syncTimerId);
+            syncTimerId = setInterval(async () => {
+                if (!activeSession || document.hidden || isSyncing) return;
+                // Açık bir düzenleme modalı varsa kullanıcının girişini bölmemek için sadece arka planda liste güncelle
+                const hasOpenEditModal =
+                    !document.getElementById('userAccountsModal').classList.contains('hidden') ||
+                    !document.getElementById('newOrderModal').classList.contains('hidden') ||
+                    !document.getElementById('editOrderMetaModal').classList.contains('hidden') ||
+                    !document.getElementById('editOrderQtyModal').classList.contains('hidden') ||
+                    !document.getElementById('cutModal').classList.contains('hidden');
+                if (hasOpenEditModal) return;
+
+                isSyncing = true;
+                try {
+                    await syncUsersFromServer(false);
+                    await syncOrdersFromServer(false);
+                    renderTable();
+                } finally {
+                    isSyncing = false;
+                }
+            }, intervalMs);
+        }
+
+        function stopLiveSync() {
+            if (syncTimerId) {
+                clearInterval(syncTimerId);
+                syncTimerId = null;
+            }
+        }
+
+        function normalizeStr(str) {
+            return (str || "").trim().toLocaleLowerCase('tr-TR');
+        }
+
+        function getGroupLabel(group) {
+            if (group === 'superuser') return 'Superuser';
+            if (group === 'cutting') return 'Kesimhane';
+            if (group === 'warehouse') return 'Depo';
+            return 'Salt Okunur';
+        }
+
+        function getEffectiveIdentity() {
+            if (!activeSession) return null;
+            if (activeSession.group === 'superuser' && impersonatedUser) {
+                return impersonatedUser;
+            }
+            return {
+                id: activeSession.id,
+                username: activeSession.username,
+                group: activeSession.group
+            };
+        }
+
+        function getShortTime() {
+            const now = new Date();
+            return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+        }
+
+        function getShortDate() {
+            const now = new Date();
+            const d = String(now.getDate()).padStart(2, '0');
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const y = String(now.getFullYear()).slice(-2);
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            return `${d}.${m}.${y} ${hh}:${mm}`;
+        }
+
+        function getFullDate() {
+            const now = new Date();
+            return `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
+        }
+
+        function addLog(order, message) {
+            if (!order.logs) order.logs = [];
+            const identity = getEffectiveIdentity();
+            const actor = identity ? identity.username : "Sistem";
+            order.logs.unshift({
+                id: Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+                text: `${actor} adlı kullanıcı ${order.orderNo} order'ının ${message}. ${getShortDate()}`
+            });
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const inputUser = document.getElementById('login-username').value.trim();
+            const inputPass = document.getElementById('login-password').value;
+            const rememberMe = document.getElementById('remember-me').checked;
+            const errorBox = document.getElementById('login-error');
+            const submitBtn = document.getElementById('login-submit-btn');
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Kontrol ediliyor...";
+
+            try {
+                await syncUsersFromServer(true);
+
+                const matched = userAccounts.find(acc =>
+                    normalizeStr(acc.username) === normalizeStr(inputUser) && acc.password === inputPass
+                );
+
+                if (!matched) {
+                    errorBox.innerText = "Kullanıcı adı veya parola hatalı.";
+                    errorBox.classList.remove('hidden');
+                    return;
+                }
+
+                errorBox.classList.add('hidden');
+                impersonatedUser = null;
+                activeSession = {
+                    id: matched.id,
+                    username: matched.username,
+                    group: matched.group
+                };
+
+                if (rememberMe) {
+                    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
+                    localStorage.setItem(REMEMBERED_USER_KEY, matched.username);
+                    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+                } else {
+                    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
+                    localStorage.removeItem(SESSION_STORAGE_KEY);
+                    localStorage.removeItem(REMEMBERED_USER_KEY);
+                }
+
+                await syncOrdersFromServer(true);
+                applyAuthState();
+                startLiveSync(5000);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Giriş Yap";
+            }
+        }
+
+        function logoutSession() {
+            stopLiveSync();
+            activeSession = null;
+            impersonatedUser = null;
+            localStorage.removeItem(SESSION_STORAGE_KEY);
+            sessionStorage.removeItem(SESSION_STORAGE_KEY);
+            closeUserAccountsModal();
+            applyAuthState();
+        }
+
+        function populateImpersonateDropdown() {
+            const select = document.getElementById('impersonate-select');
+            const resetBtn = document.getElementById('btn-reset-impersonate');
+
+            if (!activeSession || activeSession.group !== 'superuser') {
+                select.innerHTML = '';
+                resetBtn.classList.add('hidden');
+                return;
+            }
+
+            const options = [];
+            const seen = new Set();
+
+            const pushOpt = (value, label) => {
+                if (seen.has(value)) return;
+                seen.add(value);
+                options.push({ value, label });
+            };
+
+            pushOpt(`self:${activeSession.username}`, `${activeSession.username} (Asıl Superuser)`);
+            userAccounts
+                .filter(acc => acc.id !== activeSession.id)
+                .forEach(acc => {
+                    pushOpt(`acc:${acc.id}`, `${acc.username} (${getGroupLabel(acc.group)})`);
+                });
+            pushOpt('group:cutting', 'Kesimhane Grubu (Sına)');
+            pushOpt('group:warehouse', 'Depo Grubu (Sına)');
+            pushOpt('group:viewer', 'Salt Okunur Grubu (Sına)');
+
+            let currentVal = `self:${activeSession.username}`;
+            if (impersonatedUser) {
+                if (impersonatedUser.id) currentVal = `acc:${impersonatedUser.id}`;
+                else currentVal = `group:${impersonatedUser.group}`;
+            }
+
+            select.innerHTML = options.map(opt =>
+                `<option value="${opt.value}" ${opt.value === currentVal ? 'selected' : ''}>${opt.label}</option>`
+            ).join('');
+
+            resetBtn.classList.toggle('hidden', !impersonatedUser);
+        }
+
+        function selectImpersonateUser(val) {
+            if (!activeSession || activeSession.group !== 'superuser') return;
+
+            if (!val || val.startsWith('self:')) {
+                impersonatedUser = null;
+            } else if (val.startsWith('acc:')) {
+                const accId = val.slice(4);
+                const found = userAccounts.find(a => a.id === accId);
+                impersonatedUser = found ? { id: found.id, username: found.username, group: found.group } : null;
+            } else if (val.startsWith('group:')) {
+                const grp = val.slice(6);
+                impersonatedUser = {
+                    id: null,
+                    username: `Test (${getGroupLabel(grp)})`,
+                    group: grp
+                };
+            }
+
+            applyAuthState();
+        }
+
+        function resetImpersonate() {
+            impersonatedUser = null;
+            applyAuthState();
+        }
+
+        function applyAuthState() {
+            const authGate = document.getElementById('auth-gate');
+            const appShell = document.getElementById('app-shell');
+
+            if (!activeSession) {
+                authGate.classList.remove('hidden');
+                appShell.classList.add('hidden');
+                const savedUser = localStorage.getItem(REMEMBERED_USER_KEY);
+                const userInput = document.getElementById('login-username');
+                if (savedUser && !userInput.value) {
+                    userInput.value = savedUser;
+                }
+                return;
+            }
+
+            const freshAccount = userAccounts.find(a => a.id === activeSession.id);
+            if (freshAccount) {
+                activeSession.username = freshAccount.username;
+                activeSession.group = freshAccount.group;
+            }
+
+            if (impersonatedUser && impersonatedUser.id) {
+                const freshImp = userAccounts.find(a => a.id === impersonatedUser.id);
+                if (freshImp) {
+                    impersonatedUser.username = freshImp.username;
+                    impersonatedUser.group = freshImp.group;
+                }
+            }
+
+            const effective = getEffectiveIdentity();
+            const isRealSuperuser = activeSession.group === 'superuser';
+
+            authGate.classList.add('hidden');
+            appShell.classList.remove('hidden');
+
+            document.getElementById('display-user-name').innerText = effective.username;
+            const badge = document.getElementById('display-user-badge');
+            const manageUsersBtn = document.getElementById('btn-manage-users');
+            const newOrderBtn = document.getElementById('btn-new-order');
+            const impControls = document.getElementById('impersonate-controls');
+
+            if (isRealSuperuser) {
+                impControls.classList.remove('hidden');
+                impControls.classList.add('inline-flex');
+                populateImpersonateDropdown();
+            } else {
+                impControls.classList.add('hidden');
+                impControls.classList.remove('inline-flex');
+            }
+
+            if (effective.group === 'superuser') {
+                badge.innerText = "Superuser";
+                badge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-600 text-white uppercase";
+            } else if (effective.group === 'cutting') {
+                badge.innerText = "Kesimhane";
+                badge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-600 text-white uppercase";
+            } else if (effective.group === 'warehouse') {
+                badge.innerText = "Depo";
+                badge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-600 text-white uppercase";
+            } else {
+                badge.innerText = "Salt Okunur";
+                badge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-gray-500 text-white uppercase";
+            }
+
+            if (isRealSuperuser) {
+                manageUsersBtn.classList.remove('hidden');
+            } else {
+                manageUsersBtn.classList.add('hidden');
+            }
+
+            if (effective.group === 'superuser') {
+                newOrderBtn.classList.remove('hidden');
+            } else {
+                newOrderBtn.classList.add('hidden');
+            }
+
+            renderTable();
+        }
+
+        async function openUserAccountsModal() {
+            if (!activeSession || activeSession.group !== 'superuser') return;
+            await syncUsersFromServer(false);
+            resetAccountForm();
+            renderAccountsTable();
+            document.getElementById('userAccountsModal').classList.remove('hidden');
+        }
+
+        function closeUserAccountsModal() {
+            document.getElementById('userAccountsModal').classList.add('hidden');
+        }
+
+        function resetAccountForm() {
+            document.getElementById('editing-account-id').value = '';
+            document.getElementById('account-form-title').innerText = 'Yeni Kullanıcı Ekle';
+            document.getElementById('acc-username').value = '';
+            document.getElementById('acc-group').value = 'cutting';
+            document.getElementById('acc-password').value = '';
+        }
+
+        function editAccountItem(id) {
+            if (!activeSession || activeSession.group !== 'superuser') return;
+            const acc = userAccounts.find(a => a.id === id);
+            if (!acc) return;
+            document.getElementById('editing-account-id').value = acc.id;
+            document.getElementById('account-form-title').innerText = `Kullanıcı Düzenle: ${acc.username}`;
+            document.getElementById('acc-username').value = acc.username;
+            document.getElementById('acc-group').value = acc.group;
+            document.getElementById('acc-password').value = acc.password;
+        }
+
+        async function saveAccountItem() {
+            if (!activeSession || activeSession.group !== 'superuser') return;
+            const editingId = document.getElementById('editing-account-id').value;
+            const username = document.getElementById('acc-username').value.trim();
+            const group = document.getElementById('acc-group').value;
+            const password = document.getElementById('acc-password').value;
+
+            if (!username || !password) {
+                alert("Kullanıcı adı ve parola boş bırakılamaz.");
+                return;
+            }
+
+            const duplicate = userAccounts.find(a => a.id !== editingId && normalizeStr(a.username) === normalizeStr(username));
+            if (duplicate) {
+                alert(`"${username}" kullanıcı adı zaten kayıtlı.`);
+                return;
+            }
+
+            let accountPayload;
+            if (editingId) {
+                const target = userAccounts.find(a => a.id === editingId);
+                if (!target) return;
+                target.username = username;
+                target.group = group;
+                target.password = password;
+                accountPayload = target;
+                if (activeSession.id === editingId) {
+                    activeSession.username = username;
+                    activeSession.group = group;
+                    if (localStorage.getItem(SESSION_STORAGE_KEY)) {
+                        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
+                    }
+                    if (sessionStorage.getItem(SESSION_STORAGE_KEY)) {
+                        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
+                    }
+                }
+            } else {
+                accountPayload = {
+                    id: "u_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+                    username,
+                    group,
+                    password
+                };
+                userAccounts.push(accountPayload);
+            }
+
+            try {
+                setSyncBadge('busy', 'Kullanıcı kaydediliyor...');
+                await LimaApi.upsertUser(accountPayload);
+                await LimaApi.addLog(activeSession.username, `Kullanıcı güncellendi/eklendi: ${username} (${getGroupLabel(group)})`);
+                await syncUsersFromServer(false);
+                setSyncBadge('ok', `D1 Kaydedildi (${getShortTime()})`);
+                resetAccountForm();
+                renderAccountsTable();
+                applyAuthState();
+            } catch (err) {
+                console.error(err);
+                setSyncBadge('err', 'Kullanıcı Kayıt Hatası!');
+                alert("Kullanıcı D1 veritabanına kaydedilemedi.");
+            }
+        }
+
+        async function deleteAccountItem(id) {
+            if (!activeSession || activeSession.group !== 'superuser') return;
+            if (activeSession.id === id) {
+                alert("Şu an oturum açık olan kendi hesabını silemezsin.");
+                return;
+            }
+            const superuserCount = userAccounts.filter(a => a.group === 'superuser').length;
+            const target = userAccounts.find(a => a.id === id);
+            if (target && target.group === 'superuser' && superuserCount <= 1) {
+                alert("Sistemde en az bir Superuser hesabı kalmalıdır.");
+                return;
+            }
+
+            if (impersonatedUser && impersonatedUser.id === id) {
+                impersonatedUser = null;
+            }
+
+            try {
+                setSyncBadge('busy', 'Kullanıcı siliniyor...');
+                await LimaApi.deleteUser(id);
+                await LimaApi.addLog(activeSession.username, `Kullanıcı silindi: ${target ? target.username : id}`);
+                userAccounts = userAccounts.filter(a => a.id !== id);
+                setSyncBadge('ok', `D1 Güncellendi (${getShortTime()})`);
+                if (document.getElementById('editing-account-id').value === id) {
+                    resetAccountForm();
+                }
+                renderAccountsTable();
+                applyAuthState();
+            } catch (err) {
+                console.error(err);
+                setSyncBadge('err', 'Silme Hatası!');
+                alert("Kullanıcı D1 veritabanından silinemedi.");
+            }
+        }
+
+        function renderAccountsTable() {
+            const tbody = document.getElementById('accounts-tbody');
+            tbody.innerHTML = userAccounts.map(acc => `
+                <tr>
+                    <td class="p-2.5 font-semibold text-slate-800">${acc.username}</td>
+                    <td class="p-2.5">
+                        <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-300">
+                            ${getGroupLabel(acc.group)}
+                        </span>
+                    </td>
+                    <td class="p-2.5 font-mono text-gray-700">${acc.password}</td>
+                    <td class="p-2.5 text-right space-x-1.5">
+                        <button onclick="editAccountItem('${acc.id}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-medium cursor-pointer">Düzenle</button>
+                        <button onclick="deleteAccountItem('${acc.id}')" class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-medium cursor-pointer">Sil</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function isSuperuser() {
+            const eff = getEffectiveIdentity();
+            return Boolean(eff && eff.group === 'superuser');
+        }
+
+        function canEditCutting() {
+            const eff = getEffectiveIdentity();
+            return Boolean(eff && (eff.group === 'superuser' || eff.group === 'cutting'));
+        }
+
+        function canEditWarehouse() {
+            const eff = getEffectiveIdentity();
+            return Boolean(eff && (eff.group === 'superuser' || eff.group === 'warehouse'));
+        }
+
+        function isOrderCompleted(order) {
+            return order.cuttingStatus === 'Tamamlandı' && order.warehouseStatus === 'Tamamlandı';
+        }
+
+        function clearOrderFilter() {
+            document.getElementById('order-filter').value = '';
+            renderTable();
+        }
+
+        function toggleLogExpand(orderKey) {
+            if (expandedOrderIds.has(orderKey)) {
+                expandedOrderIds.delete(orderKey);
+            } else {
+                expandedOrderIds.add(orderKey);
+            }
+            renderTable();
+        }
+
+        async function deleteLogEntry(orderIndex, logId) {
+            if (!isSuperuser()) return;
+            const order = orders[orderIndex];
+            order.logs = (order.logs || []).filter(l => l.id !== logId);
+            renderTable();
+            await persistOrderToD1(order, "Log kaydı silindi");
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabActive = document.getElementById('tab-active');
+            const tabCompleted = document.getElementById('tab-completed');
+
+            if (tab === 'active') {
+                tabActive.className = "px-4 py-2 text-sm font-semibold rounded-t bg-white border border-b-0 border-gray-300 text-slate-800";
+                tabCompleted.className = "px-4 py-2 text-sm font-medium rounded-t bg-gray-200 text-gray-600 hover:bg-gray-300";
+            } else {
+                tabCompleted.className = "px-4 py-2 text-sm font-semibold rounded-t bg-white border border-b-0 border-gray-300 text-slate-800";
+                tabActive.className = "px-4 py-2 text-sm font-medium rounded-t bg-gray-200 text-gray-600 hover:bg-gray-300";
+            }
+            renderTable();
+        }
+
+        function getCuttingStatusStyle(status) {
+            if (status === 'Tamamlandı') return 'bg-emerald-600 text-white border-emerald-700';
+            if (status === 'Devam Ediyor') return 'bg-amber-500 text-white border-amber-600';
+            return 'bg-slate-500 text-white border-slate-600';
+        }
+
+        function getWarehouseStatusStyle(status) {
+            if (status === 'Tamamlandı') return 'bg-emerald-600 text-white border-emerald-700';
+            if (status === 'Güncel ok') return 'bg-sky-600 text-white border-sky-700';
+            return 'bg-slate-500 text-white border-slate-600';
+        }
+
+        function renderTable() {
+            if (!activeSession) return;
+            const tbody = document.getElementById('orders-tbody');
+            tbody.innerHTML = '';
+
+            const activeOrders = orders.filter(o => !isOrderCompleted(o));
+            const completedOrders = orders.filter(o => isOrderCompleted(o));
+
+            const totalRemainingActive = activeOrders.reduce((sum, o) => {
+                const cutSum = o.cuts.reduce((s, c) => s + c.qty, 0);
+                return sum + Math.max(0, o.orderQty - cutSum);
+            }, 0);
+
+            document.getElementById('stat-active').innerText = activeOrders.length;
+            document.getElementById('stat-remaining').innerText = totalRemainingActive.toLocaleString('tr-TR') + ' Adet';
+            document.getElementById('count-active').innerText = activeOrders.length;
+            document.getElementById('count-completed').innerText = completedOrders.length;
+
+            let listToShow = currentTab === 'active' ? [...activeOrders] : [...completedOrders];
+
+            if (currentTab === 'active') {
+                listToShow.sort((a, b) => Number(Boolean(b.urgent)) - Number(Boolean(a.urgent)));
+            }
+
+            const filterQuery = normalizeStr(document.getElementById('order-filter').value);
+            if (filterQuery) {
+                listToShow = listToShow.filter(o =>
+                    normalizeStr(o.orderNo).includes(filterQuery) ||
+                    normalizeStr(o.model).includes(filterQuery) ||
+                    normalizeStr(o.color).includes(filterQuery)
+                );
+            }
+
+            if (listToShow.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-6 text-gray-500">Kayıt bulunamadı.</td></tr>`;
+                return;
+            }
+
+            const superEditable = isSuperuser();
+            const cuttingDisabledAttr = canEditCutting() ? '' : 'disabled title="Bu alanı yalnızca Kesimhane veya Superuser değiştirebilir"';
+            const warehouseDisabledAttr = canEditWarehouse() ? '' : 'disabled title="Bu alanı yalnızca Depo veya Superuser değiştirebilir"';
+            const lockedClass = 'opacity-50 cursor-not-allowed';
+
+            listToShow.forEach(order => {
+                const realIndex = orders.indexOf(order);
+                const orderKey = order.id || order.orderNo;
+                const totalCut = order.cuts.reduce((sum, c) => sum + c.qty, 0);
+                const remaining = order.orderQty - totalCut;
+                const isExpanded = expandedOrderIds.has(orderKey);
+
+                const tr = document.createElement('tr');
+                tr.classList.add('order-row');
+                if (order.urgent) {
+                    tr.classList.add('urgent-row');
+                }
+
+                const urgentCellHtml = superEditable
+                    ? `<input type="checkbox" ${order.urgent ? 'checked' : ''} onchange="toggleUrgent(${realIndex}, this.checked)" class="w-4 h-4 accent-rose-600 cursor-pointer" title="Acil Öncelik">`
+                    : `<input type="checkbox" ${order.urgent ? 'checked' : ''} disabled class="w-4 h-4 accent-rose-600 opacity-60 cursor-not-allowed" title="Acil işaretini yalnızca Superuser değiştirebilir">`;
+
+                const orderNoCellHtml = superEditable
+                    ? `<button onclick="openEditOrderMetaModal(${realIndex})" title="Order No / Model / Renk Düzenle" class="font-bold text-slate-800 hover:underline hover:text-indigo-700 cursor-pointer">${order.orderNo} ✎</button>`
+                    : `<span class="font-bold text-slate-800">${order.orderNo}</span>`;
+
+                const modelCellHtml = superEditable
+                    ? `<button onclick="openEditOrderMetaModal(${realIndex})" title="Model Adını Düzenle" class="text-left hover:underline hover:text-indigo-700 cursor-pointer font-medium">${order.model}</button>`
+                    : `<span class="font-medium text-gray-800">${order.model}</span>`;
+
+                const colorCellHtml = superEditable
+                    ? `<button onclick="openEditOrderMetaModal(${realIndex})" title="Rengi Düzenle" class="hover:underline hover:text-indigo-700 cursor-pointer font-medium">${order.color}</button>`
+                    : `<span class="font-medium text-gray-700">${order.color}</span>`;
+
+                const orderQtyCellHtml = superEditable
+                    ? `<button onclick="openEditOrderQtyModal(${realIndex})" title="Order Adedini Düzenle" class="hover:underline hover:text-indigo-700 cursor-pointer font-semibold">${order.orderQty.toLocaleString('tr-TR')} ✎</button>`
+                    : `<span class="font-semibold text-gray-900">${order.orderQty.toLocaleString('tr-TR')}</span>`;
+
+                const cutBtnHtml = canEditCutting()
+                    ? `<button onclick="openCutModal(${realIndex})" title="Parça Kesim Ekle / Düzenle / Sil" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-2 py-0.5 rounded text-xs cursor-pointer">+ Gir</button>`
+                    : `<button onclick="openCutModal(${realIndex})" title="Kesim Partilerini Görüntüle" class="bg-slate-100 text-slate-500 font-semibold px-2 py-0.5 rounded text-xs cursor-pointer">Gör</button>`;
+
+                const updateCellHtml = order.hasUpdate
+                    ? `<span title="Depo onayında 'Güncel ok' seçildiğinde kalkar" class="inline-block bg-emerald-600 text-white font-bold px-2.5 py-1 rounded text-xs shadow-xs">Güncellendi!</span>`
+                    : `<span class="text-gray-400 text-xs">-</span>`;
+
+                tr.innerHTML = `
+                    <td class="text-center">${urgentCellHtml}</td>
+                    <td class="text-center">
+                        ${orderNoCellHtml}
+                        <div class="text-[10px] text-gray-500 mt-0.5">Eklenme: ${order.createdAt || '-'}</div>
+                    </td>
+                    <td class="font-medium text-gray-800">
+                        <div class="flex items-center justify-between gap-2">
+                            ${modelCellHtml}
+                            <button onclick="toggleLogExpand('${orderKey}')" title="Order Log Kayıtlarını Aç/Kapat" class="w-5 h-5 inline-flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs cursor-pointer shrink-0">
+                                ${isExpanded ? '−' : '+'}
+                            </button>
+                        </div>
+                    </td>
+                    <td class="text-center font-medium text-gray-700">${colorCellHtml}</td>
+                    <td class="text-right font-semibold text-gray-900">${orderQtyCellHtml}</td>
+                    <td class="text-right">
+                        <div class="inline-flex items-center justify-end gap-2">
+                            <span class="font-bold text-slate-800">${totalCut.toLocaleString('tr-TR')}</span>
+                            ${cutBtnHtml}
+                        </div>
+                    </td>
+                    <td class="text-center">${updateCellHtml}</td>
+                    <td class="text-right font-bold ${remaining > 0 ? 'text-red-600' : 'text-emerald-600'}">
+                        ${remaining.toLocaleString('tr-TR')}
+                    </td>
+                    <td class="text-center">
+                        <select ${cuttingDisabledAttr} onchange="changeApproval(${realIndex}, 'cutting', this.value)" class="px-2 py-1 rounded text-xs font-semibold border focus:outline-none ${canEditCutting() ? 'cursor-pointer' : lockedClass} ${getCuttingStatusStyle(order.cuttingStatus)}">
+                            <option value="Beklemede" class="bg-white text-gray-800" ${order.cuttingStatus === 'Beklemede' ? 'selected' : ''}>Beklemede</option>
+                            <option value="Devam Ediyor" class="bg-white text-gray-800" ${order.cuttingStatus === 'Devam Ediyor' ? 'selected' : ''}>Devam Ediyor</option>
+                            <option value="Tamamlandı" class="bg-white text-gray-800" ${order.cuttingStatus === 'Tamamlandı' ? 'selected' : ''}>Tamamlandı</option>
+                        </select>
+                        ${order.cuttingStatus === 'Tamamlandı' && order.cuttingCompletedAt ? `<div class="text-[10px] text-gray-500 mt-0.5">${order.cuttingCompletedAt}</div>` : ''}
+                    </td>
+                    <td class="text-center">
+                        <select ${warehouseDisabledAttr} onchange="changeApproval(${realIndex}, 'warehouse', this.value)" class="px-2 py-1 rounded text-xs font-semibold border focus:outline-none ${canEditWarehouse() ? 'cursor-pointer' : lockedClass} ${getWarehouseStatusStyle(order.warehouseStatus)}">
+                            <option value="Beklemede" class="bg-white text-gray-800" ${order.warehouseStatus === 'Beklemede' ? 'selected' : ''}>Beklemede</option>
+                            <option value="Güncel ok" class="bg-white text-gray-800" ${order.warehouseStatus === 'Güncel ok' ? 'selected' : ''}>Güncel ok</option>
+                            <option value="Tamamlandı" class="bg-white text-gray-800" ${order.warehouseStatus === 'Tamamlandı' ? 'selected' : ''}>Tamamlandı</option>
+                        </select>
+                        ${order.warehouseStatus === 'Tamamlandı' && order.warehouseCompletedAt ? `<div class="text-[10px] text-gray-500 mt-0.5">${order.warehouseCompletedAt}</div>` : ''}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                if (isExpanded) {
+                    const logTr = document.createElement('tr');
+                    logTr.className = "bg-slate-50";
+                    const logs = order.logs || [];
+                    const logItemsHtml = logs.length === 0
+                        ? `<div class="text-xs text-gray-400 italic">Bu order için log kaydı bulunmuyor.</div>`
+                        : logs.map(log => `
+                            <div class="flex items-center justify-between text-xs py-1 px-2 bg-white border border-gray-200 rounded">
+                                <span class="text-gray-700">${log.text}</span>
+                                ${superEditable
+                                    ? `<button onclick="deleteLogEntry(${realIndex}, '${log.id}')" class="text-red-600 hover:text-red-800 font-semibold ml-3 cursor-pointer">Sil</button>`
+                                    : ''}
+                            </div>
+                        `).join('');
+
+                    logTr.innerHTML = `
+                        <td colspan="10" class="p-3 bg-slate-50 border-t border-b border-slate-200">
+                            <div class="text-xs font-bold text-slate-700 mb-1.5">📋 ${order.orderNo} — Order Hareket Log Arşivi</div>
+                            <div class="space-y-1 max-h-48 overflow-y-auto">${logItemsHtml}</div>
+                        </td>
+                    `;
+                    tbody.appendChild(logTr);
+                }
+            });
+        }
+
+        async function toggleUrgent(index, isUrgent) {
+            if (!isSuperuser()) return;
+            const order = orders[index];
+            order.urgent = isUrgent;
+            const msg = isUrgent ? "acil kutucuğunu işaretledi" : "acil işaretini kaldırdı";
+            addLog(order, msg);
+            renderTable();
+            await persistOrderToD1(order, msg);
+        }
+
+        async function changeApproval(index, area, newStatus) {
+            if (area === 'cutting' && !canEditCutting()) return;
+            if (area === 'warehouse' && !canEditWarehouse()) return;
+
+            const order = orders[index];
+            let msg = "";
+            if (area === 'cutting') {
+                order.cuttingStatus = newStatus;
+                order.cuttingCompletedAt = newStatus === 'Tamamlandı' ? getFullDate() : "";
+                msg = `kesimhane onay kutucuğunu ${newStatus.toLowerCase()} olarak işaretledi`;
+                addLog(order, msg);
+            } else if (area === 'warehouse') {
+                order.warehouseStatus = newStatus;
+                order.warehouseCompletedAt = newStatus === 'Tamamlandı' ? getFullDate() : "";
+                if (newStatus === 'Güncel ok') {
+                    order.hasUpdate = false;
+                }
+                msg = `depo onay kutucuğunu ${newStatus.toLowerCase()} olarak işaretledi`;
+                addLog(order, msg);
+            }
+
+            renderTable();
+            await persistOrderToD1(order, msg);
+        }
+
+        function openNewOrderModal() {
+            if (!isSuperuser()) return;
+            document.getElementById('new-order-no').value = '';
+            document.getElementById('new-model').value = '';
+            document.getElementById('new-color').value = '';
+            document.getElementById('new-qty').value = '';
+            document.getElementById('new-urgent').checked = false;
+            document.getElementById('newOrderModal').classList.remove('hidden');
+        }
+
+        function closeNewOrderModal() {
+            document.getElementById('newOrderModal').classList.add('hidden');
+        }
+
+        async function saveNewOrder() {
+            if (!isSuperuser()) return;
+            const orderNo = document.getElementById('new-order-no').value.trim().toUpperCase();
+            const model = document.getElementById('new-model').value.trim().toUpperCase();
+            const color = document.getElementById('new-color').value.trim().toUpperCase();
+            const orderQty = parseInt(document.getElementById('new-qty').value);
+            const urgent = document.getElementById('new-urgent').checked;
+
+            if (!orderNo || !model || !color || !orderQty || orderQty <= 0) {
+                alert('Lütfen tüm alanları eksiksiz doldurun.');
+                return;
+            }
+
+            const existingOrder = orders.find(o => normalizeStr(o.orderNo) === normalizeStr(orderNo));
+            if (existingOrder) {
+                const locationText = isOrderCompleted(existingOrder) ? "Tamamlanan Orderlar / Arşiv" : "Aktif Kesim Listesi";
+                alert(`"${orderNo}" numaralı order zaten kayıtlı (${locationText}, Renk: ${existingOrder.color}). Aynı order no tekrar eklenemez.`);
+                return;
+            }
+
+            const newOrder = {
+                id: "ord_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+                urgent,
+                createdAt: getFullDate(),
+                orderNo,
+                model,
+                color,
+                orderQty,
+                cuts: [],
+                hasUpdate: false,
+                cuttingStatus: 'Beklemede',
+                cuttingCompletedAt: '',
+                warehouseStatus: 'Beklemede',
+                warehouseCompletedAt: '',
+                logs: []
+            };
+            addLog(newOrder, "yeni order olarak ekledi");
+
+            orders.unshift(newOrder);
+            closeNewOrderModal();
+            switchTab('active');
+            await persistOrderToD1(newOrder, "Yeni order eklendi");
+        }
+
+        function openEditOrderMetaModal(index) {
+            if (!isSuperuser()) return;
+            const order = orders[index];
+            document.getElementById('edit-order-meta-index').value = index;
+            document.getElementById('edit-order-meta-subtitle').innerText = `Mevcut Order: ${order.orderNo}`;
+            document.getElementById('edit-order-no-input').value = order.orderNo;
+            document.getElementById('edit-model-input').value = order.model;
+            document.getElementById('edit-color-input').value = order.color;
+            document.getElementById('editOrderMetaModal').classList.remove('hidden');
+        }
+
+        function closeEditOrderMetaModal() {
+            document.getElementById('editOrderMetaModal').classList.add('hidden');
+        }
+
+        async function saveEditedOrderMeta() {
+            if (!isSuperuser()) return;
+            const index = parseInt(document.getElementById('edit-order-meta-index').value);
+            const newOrderNo = document.getElementById('edit-order-no-input').value.trim().toUpperCase();
+            const newModel = document.getElementById('edit-model-input').value.trim().toUpperCase();
+            const newColor = document.getElementById('edit-color-input').value.trim().toUpperCase();
+
+            if (!newOrderNo || !newModel || !newColor) {
+                alert('Order No, Model Adı ve Renk alanları boş bırakılamaz.');
+                return;
+            }
+
+            const duplicate = orders.find((o, i) => i !== index && normalizeStr(o.orderNo) === normalizeStr(newOrderNo));
+            if (duplicate) {
+                alert(`"${newOrderNo}" numaralı order zaten başka bir kayıtta mevcut.`);
+                return;
+            }
+
+            const order = orders[index];
+            const oldOrderNo = order.orderNo;
+            let changed = false;
+
+            if (oldOrderNo !== newOrderNo) {
+                order.orderNo = newOrderNo;
+                addLog(order, `order no'sunu değiştirdi (${oldOrderNo} -> ${newOrderNo})`);
+                changed = true;
+            }
+            if (order.model !== newModel) {
+                const oldModel = order.model;
+                order.model = newModel;
+                addLog(order, `model adını değiştirdi (${oldModel} -> ${newModel})`);
+                changed = true;
+            }
+            if (order.color !== newColor) {
+                const oldColor = order.color;
+                order.color = newColor;
+                addLog(order, `rengini değiştirdi (${oldColor} -> ${newColor})`);
+                changed = true;
+            }
+
+            closeEditOrderMetaModal();
+            renderTable();
+            if (changed) {
+                await persistOrderToD1(order, "Order kimlik bilgileri güncellendi");
+            }
+        }
+
+        function openEditOrderQtyModal(index) {
+            if (!isSuperuser()) return;
+            const order = orders[index];
+            document.getElementById('edit-order-qty-index').value = index;
+            document.getElementById('edit-order-qty-subtitle').innerText = `${order.orderNo} (${order.color}) - Mevcut: ${order.orderQty.toLocaleString('tr-TR')} Adet`;
+            document.getElementById('edit-order-qty-input').value = order.orderQty;
+            document.getElementById('editOrderQtyModal').classList.remove('hidden');
+        }
+
+        function closeEditOrderQtyModal() {
+            document.getElementById('editOrderQtyModal').classList.add('hidden');
+        }
+
+        async function saveEditedOrderQty() {
+            if (!isSuperuser()) return;
+            const index = parseInt(document.getElementById('edit-order-qty-index').value);
+            const newQty = parseInt(document.getElementById('edit-order-qty-input').value);
+
+            if (!newQty || newQty <= 0) {
+                alert('Lütfen geçerli bir order adedi girin.');
+                return;
+            }
+
+            const order = orders[index];
+            if (order.orderQty !== newQty) {
+                order.orderQty = newQty;
+                const msg = `order adedini değiştirdi (Yeni: ${newQty.toLocaleString('tr-TR')})`;
+                addLog(order, msg);
+                closeEditOrderQtyModal();
+                renderTable();
+                await persistOrderToD1(order, msg);
+            } else {
+                closeEditOrderQtyModal();
+            }
+        }
+
+        function openCutModal(index) {
+            const order = orders[index];
+            const editable = canEditCutting();
+            document.getElementById('cut-order-index').value = index;
+            document.getElementById('cut-modal-subtitle').innerText = `${order.orderNo} | ${order.model} (${order.color}) - Sipariş: ${order.orderQty.toLocaleString('tr-TR')} Adet`;
+            document.getElementById('cut-add-qty').value = '';
+            document.getElementById('cut-add-section').classList.toggle('hidden', !editable);
+
+            const historyList = document.getElementById('cut-history-list');
+            if (order.cuts.length === 0) {
+                historyList.innerHTML = '<span class="text-gray-400 italic">Henüz kesim girişi yapılmamış.</span>';
+            } else {
+                historyList.innerHTML = order.cuts.map((c, i) => `
+                    <div class="flex items-center justify-between border-b border-gray-200 pb-1.5 gap-2">
+                        <span class="text-gray-600">${i + 1}. Parti (${c.date})</span>
+                        <div class="flex items-center gap-1.5">
+                            ${editable
+                                ? `<input type="number" id="batch-edit-${i}" value="${c.qty}" class="w-24 border border-gray-300 rounded px-1.5 py-0.5 text-xs font-bold text-right">
+                                   <button onclick="updateCutBatch(${index}, ${i})" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded text-[11px] cursor-pointer">Kaydet</button>
+                                   <button onclick="deleteCutBatch(${index}, ${i})" class="bg-red-600 hover:bg-red-700 text-white px-2 py-0.5 rounded text-[11px] cursor-pointer">Sil</button>`
+                                : `<span class="font-bold">${c.qty.toLocaleString('tr-TR')} Adet</span>`
+                            }
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('cutModal').classList.remove('hidden');
+        }
+
+        function closeCutModal() {
+            document.getElementById('cutModal').classList.add('hidden');
+        }
+
+        async function saveCutBatch() {
+            if (!canEditCutting()) return;
+            const index = parseInt(document.getElementById('cut-order-index').value);
+            const qty = parseInt(document.getElementById('cut-add-qty').value);
+
+            if (!qty || qty <= 0) {
+                alert('Lütfen geçerli bir kesim adedi girin.');
+                return;
+            }
+
+            const now = new Date();
+            const dateStr = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth()+1).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            const order = orders[index];
+            order.cuts.push({ qty, date: dateStr });
+            order.hasUpdate = true;
+            if (order.cuttingStatus === 'Beklemede') {
+                order.cuttingStatus = 'Devam Ediyor';
+            }
+            const msg = `girilen kesim adedine ekleme yaptı (+${qty.toLocaleString('tr-TR')})`;
+            addLog(order, msg);
+
+            openCutModal(index);
+            renderTable();
+            await persistOrderToD1(order, msg);
+        }
+
+        async function updateCutBatch(orderIndex, batchIndex) {
+            if (!canEditCutting()) return;
+            const inputEl = document.getElementById(`batch-edit-${batchIndex}`);
+            const newQty = parseInt(inputEl.value);
+            if (!newQty || newQty <= 0) {
+                alert('Lütfen geçerli bir adet girin.');
+                return;
+            }
+
+            const order = orders[orderIndex];
+            const oldQty = order.cuts[batchIndex].qty;
+            if (oldQty === newQty) return;
+
+            order.cuts[batchIndex].qty = newQty;
+            order.hasUpdate = true;
+
+            const msg = newQty < oldQty
+                ? `kesim adedini düşürdü (${oldQty.toLocaleString('tr-TR')} -> ${newQty.toLocaleString('tr-TR')})`
+                : `girilen kesim adedini güncelledi (${oldQty.toLocaleString('tr-TR')} -> ${newQty.toLocaleString('tr-TR')})`;
+            addLog(order, msg);
+
+            openCutModal(orderIndex);
+            renderTable();
+            await persistOrderToD1(order, msg);
+        }
+
+        async function deleteCutBatch(orderIndex, batchIndex) {
+            if (!canEditCutting()) return;
+            const order = orders[orderIndex];
+            const removed = order.cuts[batchIndex];
+            order.cuts.splice(batchIndex, 1);
+            order.hasUpdate = true;
+            const msg = `kesim adedini düşürdü (${removed.qty.toLocaleString('tr-TR')} adet parti silindi)`;
+            addLog(order, msg);
+
+            openCutModal(orderIndex);
+            renderTable();
+            await persistOrderToD1(order, msg);
+        }
+
+        (async function initSession() {
+            try {
+                const savedLocal = localStorage.getItem(SESSION_STORAGE_KEY);
+                const savedSession = sessionStorage.getItem(SESSION_STORAGE_KEY);
+                const rawSaved = savedLocal || savedSession;
+                if (rawSaved) {
+                    const parsed = JSON.parse(rawSaved);
+                    await syncUsersFromServer(true);
+                    const found = userAccounts.find(a => a.id === parsed.id || normalizeStr(a.username) === normalizeStr(parsed.username));
+                    if (found) {
+                        activeSession = { id: found.id, username: found.username, group: found.group };
+                        await syncOrdersFromServer(true);
+                        startLiveSync(5000);
+                    }
+                }
+            } catch (_) {}
+            applyAuthState();
+        })();
+    </script>
+</body>
+</html>
